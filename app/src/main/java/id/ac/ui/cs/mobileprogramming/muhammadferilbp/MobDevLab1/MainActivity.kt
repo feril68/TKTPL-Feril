@@ -9,62 +9,79 @@ import android.os.Bundle
 import android.widget.Button
 import android.widget.TextView
 import androidx.appcompat.app.AppCompatActivity
+import com.google.gson.Gson
 import com.squareup.okhttp.Callback
 import com.squareup.okhttp.OkHttpClient
 import com.squareup.okhttp.Request
 import com.squareup.okhttp.Response
+import org.json.JSONArray
+import org.json.JSONObject
 import java.io.IOException
 
 
 class MainActivity : AppCompatActivity() {
-    private var wifiManager: WifiManager? = null
-    private var stringBuilder = StringBuilder()
-    var textView : TextView? = null
-    private var wifiReceiver: BroadcastReceiver = object : BroadcastReceiver() {
-        override fun onReceive(context: Context, intent: Intent) {
-            val results = wifiManager!!.scanResults
-            unregisterReceiver(this)
-
-            for (scanResult in results) {
-                stringBuilder.append(scanResult.SSID.toString() + "\n")
-                textView = findViewById(R.id.textView)
-                textView!!.text = stringBuilder.toString()
-            }
-            getRequest(stringBuilder.toString())
-        }
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
-        registerReceiver(wifiReceiver, IntentFilter(WifiManager.SCAN_RESULTS_AVAILABLE_ACTION))
-        wifiManager = applicationContext.getSystemService(Context.WIFI_SERVICE) as WifiManager
         val button = findViewById<Button>(R.id.button)
         button.setOnClickListener{
-            wifiManager!!.startScan()
+            getRequest()
 
         }
     }
 
-    fun getRequest(stringData: String?) {
+    fun getRequest() {
         val client = OkHttpClient()
+        val stringIdAreaGroup = "1642911,1648473,1645518,1625084,1649378"
+
         val request: Request = Request.Builder()
-                .url("https://postman-echo.com/get?data=$stringData")
+                .url("http://api.openweathermap.org/data/2.5/group?id=$stringIdAreaGroup&appid=63fcf1ce1c302ff0f1447db2fc1f943e")
                 .build()
         client.newCall(request).enqueue(object : Callback {
             override fun onFailure(request: Request?, e: IOException?) {
                 runOnUiThread { //Handle UI here
-                    findViewById<TextView>(R.id.textView2).text = "gagal"
+                    findViewById<TextView>(R.id.textView).text = "gagal"
                 }
             }
 
             override fun onResponse(response: Response?) {
-                val res = response!!.body().string()
+                val res = response!!.body().charStream()
+                val gsonObject = Gson().fromJson(res, OpenWeatherEntity.ApiCuacaBody::class.java)
 
+                val strTemperature = gsonObject.list[0].main.temp.toString()
+                val strName = gsonObject.list[0].name
                 runOnUiThread { //Handle UI here
-                    findViewById<TextView>(R.id.textView2).text = "Ini reponse : \n$res"
+                    findViewById<TextView>(R.id.textView).text =
+                            "${strName} : \n${strTemperature} Kelvin"
                 }
             }
         })
     }
 }
+
+/*
+*
+* ini pake JSONobject
+*
+ */
+//                val jsonObject = JSONObject(res)
+//                val listCuaca : JSONArray = jsonObject.get("list") as JSONArray
+//                val cuacaOneItem : JSONObject = listCuaca.get(0) as JSONObject
+//                val cuacaOneItemMain : JSONObject = cuacaOneItem.getJSONObject("main")
+//                val strTemperature = cuacaOneItemMain.getString("temp")
+//                val strName = cuacaOneItem.getString("name")
+//                val strTemperature =
+//                        jsonObject.getJSONArray("list")
+//                                .getJSONObject(0)
+//                                .getJSONObject("main")
+//                                .getString("temp")
+//                val strName =
+//                        jsonObject.getJSONArray("list")
+//                                .getJSONObject(0)
+//                                .getString("name")
+/*
+*
+* ini pake GSON
+*
+ */
